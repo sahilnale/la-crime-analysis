@@ -5,4 +5,6 @@ Link to R-Markdown PDF - [Data Analysis of LA crime R-Markdown ](https://drive.g
 
 Tableau Dashboard - [LA Crime Dashboard](https://public.tableau.com/app/profile/sahil.nale/viz/LA-crime/Dashboard1)
 
+The code for the crime analysis is attached and the pdf with the final summarized analysis is also attached. 
 
+Everything in this RMD is a summarized version of findings in the dataset, please refer to the code/R-Markdown file for a more detailed analysis & data exploration
