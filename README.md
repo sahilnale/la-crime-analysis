@@ -12,61 +12,12 @@ Everything in this RMD is a summarized version of findings in the dataset, pleas
 
 <a name="br1"></a> 
 
-**Insights into Crime: A Comprehensive**
+**Insights into Crime: A Comprehensive Statistical Analysis of Crime in Los Angeles**
 
-**Statistical Analysis of Crime in Los Angeles**
-
-Sahil Nale, Yejin Lee, Jiaxuan Huang
-
-11 December 2023
-
-Stat 15: Introduction to Data Science
-
-Fall 2023
-
-Prof. Robert Gould
-
-
-
-<a name="br2"></a> 
-
-1
 
 **I. Abstract**
 
-This research was initially intended to investigate the location and time of crimes and predict
-
-crimes based on crime data in Los Angeles, in the past three years, provided by the Los Angeles
-
-Police Department. However, due to limited numerical variables, we were unable to conduct the
-
-data analysis we initially hoped to conduct, which involved implementing some sort of
-
-regression, so we were unable to make any solid conclusions based on the location and times of
-
-crimes. Instead, we shifted our study to investigate and identify the possible factors and patterns
-
-of crimes to bring to light information to help the public stay safe and avoid crimes in Los
-
-Angeles. We explored questions concerning the overall trend of crime, demographics of victims,
-
-times of crimes, and the length for a crime to be reported. We cleaned and explored the dataset
-
-on RStudio, and utilized multivariable plots, bootstrapping methods, hypothesis testing, and
-
-random forests to discover patterns and trends that could help answer our questions. From our
-
-study, we concluded that the overall trend of crime in LA in the past 3 years has increased,
-
-crimes were more likely to occur in the later half of the day rather than in the first half of the day,
-
-and it took about 10 days for a crime to be reported. We also found out that certain areas in LA
-
-have more crimes than others, more specifically towards northern/downtown LA. Finally, we
-
-identified that the demographics of individuals most likely to be a victim of crime were around
-
-39 years of age, male, or of Hispanic descent.
+This research was initially intended to investigate the location and time of crimes and predict crimes based on crime data in Los Angeles, in the past three years, provided by the Los Angeles Police Department. However, due to limited numerical variables, we were unable to conduct the data analysis we initially hoped to conduct, which involved implementing some sort of regression, so we were unable to make any solid conclusions based on the location and times of crimes. Instead, we shifted our study to investigate and identify the possible factors and patterns of crimes to bring to light information to help the public stay safe and avoid crimes in Los Angeles. We explored questions concerning the overall trend of crime, demographics of victims, times of crimes, and the length for a crime to be reported. We cleaned and explored the dataset on RStudio, and utilized multivariable plots, bootstrapping methods, hypothesis testing, and random forests to discover patterns and trends that could help answer our questions. From our study, we concluded that the overall trend of crime in LA in the past 3 years has increased, crimes were more likely to occur in the later half of the day rather than in the first half of the day, and it took about 10 days for a crime to be reported. We also found out that certain areas in LA have more crimes than others, more specifically towards northern/downtown LA. Finally, we identified that the demographics of individuals most likely to be a victim of crime were around 39 years of age, male, or of Hispanic descent.
 
 **II. Introduction**
 
@@ -82,47 +33,7 @@ The following are questions that are going to be explored in this report:
 
 5\. How long does it take victims to report crimes after they have occurred in Los Angeles?
 
-Our general motivation for looking into LA crime data was to find relationships and patterns that
-
-help bring more awareness and safety to the people of LA, by providing them with information
-
-that can help them avoid crime. We investigated demographics of victims such as age, sex, and
-
-descent, to see who was most likely to be a victim of a crime. We also looked into the times
-
-crimes would occur to determine whether crimes occur more during the day or at night, so we
-
-could inform individuals to be more aware during these times. The average length it took for a
-
-crime to be reported was also looked into to find out if crimes were reported in a timely manner
-
-because decreasing the number of days would inform the population of a crime quicker and
-
-increase awareness. The dataset used for this project is sourced from the Los Angeles Police
-
-Department (LAPD), a reputable and transparent public organization. It encompasses crime
-
-records in the city of Los Angeles from the year 2020 to the present date (last updated on
-
-October 18, 2023). The crime records are transcribed from original crime reports that were on
-
-paper first. The dataset is updated on a weekly basis, ensuring the inclusion of the latest
-
-
-
-<a name="br3"></a> 
-
-2
-
-information. While the LAPD is considered a trustworthy source, it is essential to acknowledge
-
-that there may be inaccuracies in the data. The dataset covers crimes reported in the city of Los
-
-Angeles, offering insights into various criminal activities over the specified time frame.
-
-Addresses are maintained to the nearest hundred block to preserve privacy, and in cases where
-
-the address is unavailable, the default coordinates are set to (0º, 0º).
+Our general motivation for looking into LA crime data was to find relationships and patterns that help bring more awareness and safety to the people of LA, by providing them with information that can help them avoid crime. We investigated demographics of victims such as age, sex, and descent, to see who was most likely to be a victim of a crime. We also looked into the times crimes would occur to determine whether crimes occur more during the day or at night, so we could inform individuals to be more aware during these times. The average length it took for a crime to be reported was also looked into to find out if crimes were reported in a timely manner because decreasing the number of days would inform the population of a crime quicker and increase awareness. The dataset used for this project is sourced from the Los Angeles Police Department (LAPD), a reputable and transparent public organization. It encompasses crime records in the city of Los Angeles from the year 2020 to the present date (last updated on October 18, 2023). The crime records are transcribed from original crime reports that were on paper first. The dataset is updated on a weekly basis, ensuring the inclusion of the latest information. While the LAPD is considered a trustworthy source, it is essential to acknowledge that there may be inaccuracies in the data. The dataset covers crimes reported in the city of Los Angeles, offering insights into various criminal activities over the specified time frame. Addresses are maintained to the nearest hundred block to preserve privacy, and in cases wherethe address is unavailable, the default coordinates are set to (0º, 0º).
 
 **III. Data Description**
 
