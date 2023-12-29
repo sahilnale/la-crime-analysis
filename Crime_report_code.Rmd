@@ -1,0 +1,1326 @@
+---
+title: "Insights into Crime: A Comprehensive Statistical Analysis of Crime in Los Angeles"
+author: "Sahil Nale, Yejin Lee, Jiaxuan Huang"
+date: "2023-12-11"
+output: pdf_document
+---
+
+```{r}
+library(tidyverse)
+library(dplyr)
+library(ggplot2)
+library(scales)
+
+crime <- read.csv("Crime_Data_from_2020_to_Present.csv")
+```
+### Understanding Data
+- dimensions of the data 
+  - 820599 rows and 28 columns 
+  - each row represents a crime case with data on: Division of Records number, date reported, date occured, time occured, area of occurance, area name, report distance number, part_1_2 status, crime code, crime code description, mocodes, victim age, victim sex, victim descent, premise code, premise description, weapon used code, weapon description, status, status description, crime code 1, ccrime code 2, crime code 3, crime code 4, location, cross_street, latitude, longitude  
+```{r}
+dim(crime)
+colnames(crime)
+# change periods to underscores for column names and turn to all lower case
+colnames(crime) <- tolower(colnames(crime))
+colnames(crime) <- gsub("\\.", "_", colnames(crime))
+```
+
+- missing data
+  - most columns have no missing data except for following columns: weapon_used_cd, premis_cd, crm_cd_1, crm_cd_2, crm_cd_3, crm_cd_4
+    - the most being ~99.9% missing values
+    - when rows with at least one missing value was removed from the data set, the reduction was extremely significant, where only about 6.946145e-03% of the original data remained. 
+  - important to note that unknown sexes for "vict_sex" were indicated with "X" instead of being left blank
+  - important to note that unknown victim descents for "vict_descent" were indicated with  "X" instead of being left blank
+- unique values in each categorical column:
+  - date_rptd: 1385
+  - date_occ: 1385
+  - time_occ: 1439
+  - area: 21
+  - area_name: 21 
+  - rpt_dist_no: 1205
+  - part_1_2: 2
+  - crm_cd: 138 
+  - crm_cd_desc: 138
+  - mocodes: 273857
+  - vict_sex: 6
+  - vict_descent: 21
+  - premis_cd: 314
+  - premis_desc: 307
+  - weapon_used_cd: 80 
+  - weapon_desc: 80
+  - status: 6
+  - status_desc: 6 
+  - crm_cd_1: 141
+  - crm_cd_2: 124
+  - crm_cd_3: 38
+  - crm_cd_4: 7
+  - location: 63719
+  - cross_street: 9689
+```{r}
+# check mean of empty values 
+colMeans(is.na(crime))
+# remove rows with at least one missing value and see reduction
+no_missing_crime <- na.omit(crime)
+nrow(no_missing_crime)/nrow(crime)
+
+# counting unqiue values in each column
+crime |> summarise_all(n_distinct)
+```
+
+## 1. Cleaning Data
+vict_age
+- when plotting a frequency plot for vict_age, there is a strange outlier at vict_age 0, where there is a large amount of victim ages being reported as 0 years old. 
+    - Although the discription of the data does not explicity say the zeros indicate missing ages, we can treat these zeros as missing values
+- also investing the unique values under vict_age, there are negative numbers
+
+vict_sex
+- when looking at distinct values for each column in previous section it showed that there are 6 unique values for vict_sex, but there should only be 3 ("F", "M", "X") as stated by the lapd data website
+  - upon further investigation, we find there are inputs of "" (blank), "-", and "H", which do not seem to have any significant meaning to us
+  - remove rows with "", "-", and "H" values because there is no description on what these inputs mean and would make viewing data with vict_sex more clear 
+```{r}
+#converting dates to datetime format
+crime$date_rptd <- as_datetime(crime$date_rptd,format="%m/%d/%Y %I:%M:%S %p")
+crime$date_occ <- as_datetime(crime$date_occ,format="%m/%d/%Y %I:%M:%S %p")
+
+#copy crime to clean_crime
+clean_crime <- crime
+
+# plotting frequencies of victim ages
+library(ggplot2)
+
+ggplot(clean_crime, aes(x = vict_age)) + 
+  geom_histogram(bins = 104, fill = "skyblue", color = "black") +
+  labs(title = "Distribution of Victim Age",
+       x = "Victim Age",
+       y = "Count") +
+  theme_minimal() +
+  scale_y_continuous(labels = label_comma())# Formats the y-axis labels as regular numbers with commas insteand of e5... expression
+  
+# data reduction
+nrow(filter(clean_crime,vict_age >0))/nrow(clean_crime)
+#too much of reduction, we can filter them out only when investigating these variables
+
+
+# plotting vict_sex 
+ggplot(clean_crime, aes(x = vict_sex)) + 
+  geom_bar(fill = "skyblue", color = "black") +
+  labs(title = "Victim Sex Distribution",
+       x = "Victim Sex",
+       y = "Count")
+
+
+# unique values under vict_sex   
+unique(crime$vict_sex)
+count(crime[crime$vict_sex == "-",])
+count(crime[crime$vict_sex == "H",])
+count(crime[crime$vict_sex == "",])
+
+# data reduction
+nrow(filter(clean_crime,!clean_crime$vict_sex == "" & !crime$vict_sex == "-" & !crime$vict_sex == "H"))/nrow(clean_crime)
+#too much of reduction, we can filter them out only when investigating these variables and save this filtered data set to sex_crimes variable
+```
+
+
+## 2. Data Exploration Basics
+
+###Understanding crime by time
+ -Use a binwidth of 100 to seperate the crimes by the hours
+-We can see that crimes start to increase every hour from 5am till 6pm and then starts to fall after 6pm till 5am again, with the exception of the 12th hour of the day where there is a large spike in crimes 
+ - Most crimes happen in the 12th hour of the day
+ - Least crimes happen in the 5th hour of the day
+
+```{r}
+ggplot(clean_crime, aes(x = time_occ)) +
+  geom_histogram(binwidth = 100, fill = "skyblue", color = "black") +
+  labs(title = "Distribution of Time of Occurrence",
+       x = "Time of Occurrence (Military Time, xyxw = xy(hour):zw(minute))",
+       y = "Count") + theme_minimal()
+
+summary(clean_crime$time_occ)
+sd(clean_crime$time_occ)
+```
+
+
+
+### Understanding crime by area 
+ - We can see that certain areas have a larger count of reported crimes than others
+ - Specifically areas 1(Central), 3(Southwest) and 12(77th Street) have the largest amounts of crimes reported
+ - Areas 4(Hollenbeck),16(Foothill),5(Harbor) have the least amounts of reported crime
+```{r}
+area_crimes <- clean_crime %>% 
+  group_by(area,area_name) %>% 
+  summarise(n=n()) %>% 
+  arrange(desc(n))
+
+# See areas with highest amounts of crime
+print(head(area_crimes))
+
+#See areas with least amounts of crime
+area_crimes<-area_crimes %>% arrange((n))
+
+print(head(area_crimes))
+
+#See number of crimes per area
+ggplot(clean_crime, aes(x = area)) +
+  geom_bar(fill = "skyblue", color = "black") +
+  labs(title = "Distribution of Crimes by Area",
+       x = "Area",
+       y = "Count") + theme_minimal()
+```
+
+###Visualizing crime location and density
+ - We see that initially the graph doesn't seem to provide us much insight as there are some outliers
+ - We drop the values so that we are able to visualize the crime locations
+ - We plot them with latitudes and longtidues we are able to see the roughly the shape of the city of LA with gaps depiciting areas no part of the city of LA or low crimes/low populated areas
+ -To get a further better picture we change the size of the points and make points semitransparent to help visualize dessity of crimes in areas.
+ -We can see that northern parts of LA towards specifically downtown crimes are reported in the highest numbers
+ -South-eastern parts of LA have lower density of crimes
+ 
+```{r}
+##ploting crimes to visualize locations
+ggplot(clean_crime,aes(x=lat,y=lon, color=area)) + geom_point()
+
+# We drop outliers by filtering them out 
+location <- clean_crime %>% filter(lat>0)
+
+head(crime)
+
+#plots the remaining lats/long for the crime locations
+ggplot(location,aes(x=lat,y=lon, color=area_name)) + geom_point(size = .01)+ guides(colour = guide_legend(override.aes = list(size=3)))
+
+#deals with overcrowding of points by using alpha to show density
+ggplot(location,aes(x=lat,y=lon, color=area_name)) + geom_point(alpha = .01,size = .05)+ guides(colour = guide_legend(override.aes = list(size=3,alpha = 1))) + labs(title = "Density of Crimes by Area",x = "Latitude",y = "Longitude",color='Area')
+```
+# Location with most crimes
+- 7th Street, 800 N Alameda St, and 6th have the most number of crimes occuring
+```{r}
+locations_crime <- clean_crime %>% 
+  group_by(location) %>% 
+  summarise(n=n()) %>% 
+  mutate(percentage_of_crimes = n/nrow(clean_crime)) %>% 
+  arrange(desc(n))
+  
+print(head(locations_crime,10))
+```
+
+### Areas with most crime
+```{r}
+area_crime <- clean_crime %>% 
+  group_by(area,area_name) %>% 
+  summarise(n=n()) %>% 
+  mutate(percentage_of_crimes = n/nrow(clean_crime)) %>% 
+  arrange(desc(n))
+  
+print(head(area_crime,10))
+```
+
+
+
+### Most common crimes
+ - We see the top 10 most common crimes
+```{r}
+common_crimes <- clean_crime %>% 
+  group_by(crm_cd,crm_cd_desc) %>% 
+  summarise(n=n()) %>% 
+  mutate(percentage_of_crimes= n/nrow(clean_crime)) %>% 
+  arrange(desc(n)) 
+
+head(common_crimes,10)
+```
+
+### Most used weapons in crimes where weapon was used
+  -  We see the top 10 most used weapons in crimes where weapons were used
+```{r}
+weapon_crimes <- clean_crime %>% 
+  group_by(weapon_used_cd,weapon_desc) %>% 
+  summarise(n=n()) %>% 
+  mutate(percentage_of_crimes= n/nrow(clean_crime)) %>% 
+  arrange(desc(n))
+
+#drops columns with N/A values
+weapon_crimes <- drop_na(weapon_crimes)
+
+print(head(weapon_crimes,10))
+```
+
+
+### Understanding ages of victims
+Distribution of Victim ages:
+ - the graph is slightly skewed to the right
+ - The youngest victim is 2 years old and the oldest victim is 120 yrs old.
+ - Mean age is 39.58 and median age is 37 years old
+ 
+```{r}
+clean_crime <- clean_crime |> filter(!clean_crime$vict_age <= 0)
+
+# summmary of trips
+summary(clean_crime$vict_age)
+sd(clean_crime$vict_age)
+
+# get youngest victim
+head(clean_crime %>% arrange(vict_age),n=1)
+
+# get oldest victim
+head(clean_crime %>% arrange(desc(vict_age)),n=1)
+
+# histogram of age distribution 
+ggplot(clean_crime, aes(x = vict_age)) +
+  geom_histogram(binwidth = 10, fill = "skyblue", color = "black") +
+  labs(title = "Victim Age Distribution",
+       x = "Victim Age",
+       y = "Count") + theme_minimal()
+
+#box-plot
+
+ggplot(clean_crime, aes(x="",y=vict_age)) +
+  geom_boxplot(fill = "skyblue", color = "black",varwidth = TRUE)+
+  labs(title = "Victim Age Distribution",x="Victims",
+       y = "Victim Age")
+
+##Get number of outliers
+outliers <- clean_crime %>% filter(vict_age>83) %>% summarize(n=n())
+print(outliers)
+```
+### Understanding role of sex and victims
+```{r}
+descent_crime <- clean_crime %>% drop_na(vict_descent)
+ggplot(descent_crime, aes(x = vict_descent)) +
+  geom_bar(stat = "count", fill = "skyblue", color = "black") +
+  labs(title = "Distribution of Victim Descent",
+       x = "Victim Descent",
+       y = "Count") + theme_minimal()
+
+
+#see table of crimes per race
+table(clean_crime$vict_descent)
+```
+
+
+### Understanding role of race and victims
+- Hispanics are the most reported victims of crime in LA, with african americans as second
+```{r}
+
+descent_crime <- clean_crime %>% drop_na(vict_descent)
+  
+
+#See number of crimes per race
+ggplot(descent_crime, aes(x = vict_descent)) +
+  geom_bar(stat = "count", fill = "skyblue", color = "black") +
+  labs(title = "Distribution of Victim Descent",
+       x = "Victim Descent",
+       y = "Count") + theme_minimal()
+
+
+#see table of crimes per race
+table(descent_crime$vict_descent)
+```
+### Breakdown of Case statuses
+ - Most crimes are investigating stage
+ - Second most common stage are adult other which could mean case dropped or withdrawal
+ - third most common is arrest stage
+ - The remain case statuses are small numbers compared to the three mentions above
+```{r}
+#create a dummy variable
+graph_variables <- clean_crime %>% 
+  summarise(status_desc) %>% 
+  mutate(crime="Crime")
+
+#See breakdown of crimes
+ggplot(graph_variables, aes(x = crime, fill = status_desc)) +
+  geom_bar() +
+  labs(title = "Crime Status Distribution",
+       x = "Crime Type",
+       y = "Count") +
+  theme_minimal()  +
+  scale_y_continuous(labels = label_comma())
+
+# create table to see counts of each case status
+table(graph_variables$status_desc)
+```
+
+```{r}
+years <- clean_crime %>% 
+  mutate(year = year(date_occ)) %>% 
+  filter(year == 2020|year == 2021|year == 2022)
+  
+# see number of crimes per year
+ggplot(years,aes(x=year,))+geom_bar(fill = "skyblue", color = "black")+labs(title = "Crime count over the past 3 years",
+       x = "Year",
+       y = "Count of Crime Instances")
+```
+
+### Days to Report
+- Heavily skewed to the right
+- Quickest report time is 0 days with 25th percentile also being 0 days 
+- Median is 1
+ - Mean is 10.49
+ - 75th percentile is 2
+ - Standard deviation: 56.85
+ - Slowest report time has been 1370 days later(3 years and 8months)
+```{r}
+diff_dates <- difftime(crime$date_rptd,crime$date_occ, units = "days")
+
+diff_dates<- as.numeric(diff_dates)
+
+#numerical summary of days taken to report a crime
+summary(diff_dates)
+sd(diff_dates)
+
+#distribution of days taken to report
+ggplot(data.frame(value = diff_dates), aes(x = value)) +
+  geom_histogram(fill = "skyblue", color = "black",bins=100) +  
+  labs(title = "Days to report crime",
+       x = "Days",
+       y = "Frequency") +
+  theme_minimal()
+```
+###Further Exploration with subgroups
+- To further explore the relationships, we divide the data into subgroups by different variables to explore their relationship with crimes
+
+ 
+```{r}
+#construction of new variables age_group and time_of_day for subgroup analysis
+
+#set intervals for age periods
+age_intervals <- c(0,10,20,30,40,50,60,70,100)
+
+clean_crime <- clean_crime  |>
+  mutate(age_groups = cut(vict_age, breaks = age_intervals,labels = c(5,15,25,35,45,55,65,85)))
+
+#a glance of age group distribution 
+library(ggplot2)
+library(scales)
+
+ggplot(clean_crime, aes(x = age_groups)) +
+  geom_bar(fill = "skyblue", color = "black") +
+  labs(title = "Victim Counts by Age Group",
+       x = "Age Group",
+       y = "Count") +
+  theme_minimal() +
+  scale_y_continuous(labels = label_comma())
+ 
+
+time_intervals <- c(0,600,1200,1800,2400)
+
+clean_crime  <- clean_crime  |>
+  mutate(time_of_day = cut(time_occ, breaks = time_intervals,labels = c('0-6', '6-12','12-18','18-24')))
+#a glance of age group distribution 
+ggplot(clean_crime, aes(x = time_of_day)) +
+  geom_bar(fill = "skyblue", color = "black") +
+  labs(title = "Crime Counts by Time of Day",
+       x = "Time of Day",
+       y = "Count") +
+  theme_minimal() +
+  scale_y_continuous(labels = label_comma())  # Formats the y-axis labels as regular numbers with commas
+
+
+```
+
+
+```{r}
+#the categories for columns like crime types, weapons, and locations are too large too observe, we filter by the their types with most instances
+# Filter the dataset to include only these top 10 crime descriptions
+
+filtered_by_crime_type <- clean_crime |> 
+                  filter(crm_cd_desc %in% head(common_crimes$crm_cd_desc,10))
+
+#change their names so they appear to be more clear on facted graphs
+# Create a named vector with custom abbreviations
+crime_type_abbreviations <- c(
+  "ASSAULT WITH DEADLY WEAPON, AGGRAVATED ASSAULT" = "Aggravated Assault",
+  "BATTERY - SIMPLE ASSAULT" = "Battery",
+  "BURGLARY" = "Burglary",
+  "BURGLARY FROM VEHICLE" = "Burgl from Veh",
+  "INTIMATE PARTNER - SIMPLE ASSAULT" = "Intim Partnr Asslt",
+  "ROBBERY" = "Robbery",
+  "THEFT FROM MOTOR VEHICLE - GRAND ($950.01 AND OVER)" = "Motor Theft >$950",
+  "THEFT OF IDENTITY" = "Identity Theft",
+  "THEFT PLAIN - PETTY ($950 & UNDER)" = "Petty Theft",
+  "VANDALISM - FELONY ($400 & OVER, ALL CHURCH VANDALISMS)" = "Felony Vandalism"
+)
+
+# Replace the descriptions with abbreviations
+filtered_by_crime_type$crm_cd_desc <- crime_type_abbreviations[filtered_by_crime_type$crm_cd_desc]
+
+#same for weapons
+filtered_by_weapon_type <- clean_crime |> 
+                  filter(weapon_desc %in% head(weapon_crimes$weapon_desc,10))
+
+
+weapon_abbreviations <- c(
+  "HAND GUN" = "Hand Gun",
+  "KNIFE WITH BLADE 6INCHES OR LESS" = "Knife <6in",
+  "MACE/PEPPER SPRAY" = "Mace/Pepper",
+  "OTHER KNIFE" = "Other Knife",
+  "SEMI-AUTOMATIC PISTOL" = "SemiAuto Pistol",
+  "STRONG-ARM (HANDS, FIST, FEET OR BODILY FORCE)" = "Strong-arm",
+  "UNKNOWN FIREARM" = "Unkn Firearm",
+  "UNKNOWN WEAPON/OTHER WEAPON" = "Unkn Weapon",
+  "VEHICLE" = "Vehicle",
+  "VERBAL THREAT" = "Verbal Threat"
+)
+
+# Replace the descriptions with abbreviations
+filtered_by_weapon_type$weapon_desc <- weapon_abbreviations[filtered_by_weapon_type$weapon_desc]
+
+#same for locations
+
+filtered_by_location <- clean_crime |> 
+                  filter(location  %in% head(locations_crime$location,10))
+#same for area
+filtered_by_area_name <- clean_crime |> 
+                  filter(area_name  %in% head(area_crime$area_name,10))
+
+location_abbreviations <- abbreviations <- c(
+  "100 THE GROVE DR" = "100 The Grove",
+  "5TH" = "5th",
+  "6TH" = "5th",
+  "6TH ST" = "6t st",
+  "700 S FIGUEROA ST" = "700S Figueroa",
+  "7TH" = "7th",
+  "7TH ST" = "7th st",
+  "800 N ALAMEDA ST" = "800N Alameda",
+  "HOLLYWOOD" = "Hollywood",
+  "100 THE GROVE DR" = "100 The Grove"
+)
+
+# Replace the descriptions with abbreviations
+#filtered_by_location <- location_abbreviations[filtered_by_location$location]. ***for unknown reason replacement fails the string of location name appear on the table is not #actually the string in data set and dont actually know what they are 
+```
+
+#for investigation of age and sex, we filter the dataset with valid age and sex respectivel
+```{r}
+
+crime_with_age <- clean_crime |> filter(vict_age > 0)
+crime_with_sex <-  clean_crime|> filter(vict_sex == "F" | vict_sex == "M" | vict_sex == "X")
+
+#perform the same procedure of clean_crime
+filtered_by_crime_type_age <- crime_with_age |> 
+                  filter(crm_cd_desc %in% head(common_crimes$crm_cd_desc,10))
+
+filtered_by_crime_type_age$crm_cd_desc <- crime_type_abbreviations[filtered_by_crime_type_age$crm_cd_desc]
+
+filtered_by_weapon_type_age <- crime_with_age |> 
+                  filter(weapon_desc %in% head(weapon_crimes$weapon_desc,10))
+
+filtered_by_weapon_type_age$weapon_desc <- weapon_abbreviations[filtered_by_weapon_type_age$weapon_desc]
+
+
+filtered_by_crime_type_sex <- crime_with_sex |> 
+                  filter(crm_cd_desc %in% head(common_crimes$crm_cd_desc,10))
+
+filtered_by_crime_type_sex$crm_cd_desc <- crime_type_abbreviations[filtered_by_crime_type_sex$crm_cd_desc]
+
+filtered_by_weapon_type_sex <- crime_with_sex |> 
+                  filter(weapon_desc %in% head(weapon_crimes$weapon_desc,10))
+filtered_by_weapon_type_sex$weapon_desc <- weapon_abbreviations[filtered_by_weapon_type_sex$weapon_desc]
+
+
+filtered_by_area_name_sex <- crime_with_sex |> 
+                  filter(area_name %in% head(area_crime$area_name,10))
+```
+
+
+###Relationship by age groups
+
+```{r}
+#Group by age intervals and crime types, then count instances
+crime_type_counts_across_age <- filtered_by_crime_type_age |> 
+                     group_by(age_groups, crm_cd_desc) |> 
+                     summarise(count = n())
+
+# Create a side-by-side bar plot
+ggplot(crime_type_counts_across_age, aes(x = age_groups, y = count)) +
+  geom_bar(stat = "identity", fill = "skyblue", color = "black") +
+  facet_wrap(~ crm_cd_desc, scales = 'free_y') +  
+  labs(title = "Crime Counts by Age Group for Top Crime Types",
+       x = "Age Group",
+       y = "Count") +
+  theme_minimal()
+
+
+
+
+```
+
+```{r}
+#use similar method to see the use of weapons across age groups
+weapon_type_counts_across_age <- filtered_by_weapon_type_age |> 
+                     group_by(age_groups, weapon_desc) |> 
+                     summarise(count = n())
+
+
+ggplot(weapon_type_counts_across_age, aes(x = age_groups, y = count)) +
+  geom_bar(stat = "identity", position = position_dodge(),fill = "skyblue", color = "black") +
+  facet_wrap(~ weapon_desc) +
+  labs(title = "Top Weapon Types Across Age Group",
+       x = "Age Group",
+       y = "Count of Crime Instances",
+       fill = "Weapon Type") +
+  theme_minimal() +
+  scale_y_continuous(labels = label_comma())
+
+
+#The proportion of strong-arm is too large, filter it to see other types
+ggplot(filter(weapon_type_counts_across_age, weapon_desc != 'Strong-arm'), aes(x = age_groups, y = count)) +
+  geom_bar(stat = "identity", position = position_dodge(),fill = "skyblue", color = "black") +
+  facet_wrap(~ weapon_desc)+
+ labs(title = "Top Weapon Types Across Age Group (body excluded)",
+       x = "Age Group",
+       y = "Count of Crime Instances",
+       fill = "Weapon Type") 
+```
+
+```{r}
+#with similar methods we expore crimes statuses by age groups
+status_type_counts_across_age <- crime_with_age |> 
+                     group_by(age_groups, status_desc) |> 
+                     summarise(count = n())
+
+
+ggplot(status_type_counts_across_age, aes(x = age_groups, y = count)) +
+  geom_bar(stat = "identity", position = position_dodge(), fill = "skyblue", color = "black") +
+  facet_wrap(~ status_desc)+
+  labs(title = "Crimes Statuses Across Age Group",
+       x = "Age Group",
+       y = "Count of Crime Instances",
+       fill = "Status Type") +theme_minimal()
+```
+
+```{r}
+# crime locations by age groups
+
+locations_counts_across_age <- filtered_by_location |> 
+                     group_by(age_groups, location) |> 
+                     summarise(count = n())
+
+
+ggplot(locations_counts_across_age, aes(x = age_groups, y = count)) +
+  geom_bar(stat = "identity", position = position_dodge(),fill = "skyblue", color = "black") +
+  facet_wrap(~location, scales = "free", ncol = 2)+
+  labs(title = "Top 10 locations Across victim Age Group",
+       x = "Age Group",
+       y = "Count of Crime Instances",
+       )+theme_minimal()
+```
+
+```{r}
+# crime area by age groups
+
+area_counts_across_age <- filtered_by_area_name |> 
+                     group_by(age_groups, area_name) |> 
+                     summarise(count = n())
+
+
+ggplot(area_counts_across_age, aes(x = age_groups, y = count)) +
+  geom_bar(stat = "identity", position = position_dodge(),fill = "skyblue", color = "black") +
+  facet_wrap(~area_name, scales = "free", nrow=3)+
+  labs(title = "Top 10 area Across victim Age Group",
+       x = "Age Group",
+       y = "Count of Crime Instances",
+       )+theme_minimal()
+
+```
+
+
+###Relationship by sex 
+```{r}
+
+#Group by age intervals and crime types, then count instances
+crime_type_counts_across_sex <- filtered_by_crime_type_sex |> 
+                     group_by(vict_sex, crm_cd_desc) |> 
+                     summarise(count = n())
+# Create a side-by-side bar plot
+ggplot(crime_type_counts_across_sex, aes(x = vict_sex, y = count)) +
+  geom_bar(stat = "identity",fill = "skyblue", color = "black") +
+  facet_wrap(~ crm_cd_desc) +
+  labs(title = "Crime Counts Across Sex for Top 10 Crime Types",
+       x = "Sex",
+       y = "Count") +theme_minimal()
+
+
+
+```
+
+```{r}
+#use similar method to see the use of weapons across sex
+
+weapon_type_counts_across_sex <- filtered_by_weapon_type_sex |> 
+                     group_by(vict_sex, weapon_desc) |> 
+                     summarise(count = n())
+
+ggplot(weapon_type_counts_across_sex, aes(x = vict_sex, y = count)) +
+  geom_bar(stat = "identity", position = position_dodge(), fill = "skyblue", color = "black") +
+  facet_wrap(~ weapon_desc)+
+ labs(title = "Top 10 Weapon Types Across Sex",
+       x = "Sex",
+       y = "Count of Crime Instances",
+       fill = "Weapon Type") + theme_minimal()
+
+#The proportion of strong-arm is too large, filter it to see other types
+ggplot(filter(weapon_type_counts_across_sex, weapon_desc != 'Strong-arm'), aes(x = vict_sex, y = count)) +
+  geom_bar(stat = "identity", position = position_dodge(), fill = "skyblue", color = "black") +
+  facet_wrap(~ weapon_desc)+
+ labs(title = "Top Weapon Types Across Sex (body excluded)",
+       x = "Sex",
+       y = "Count of Crime Instances",
+       fill = "Weapon Type") + theme_minimal()
+```
+
+```{r}
+#with similar methods we explore crimes statuses across sex
+status_type_counts_across_sex <- crime_with_sex |> 
+                     group_by(vict_sex, status_desc) |> 
+                     summarise(count = n())
+
+ggplot(status_type_counts_across_sex, aes(x = vict_sex, y = count)) +
+  geom_bar(stat = "identity", position = position_dodge(),fill = "skyblue", color = "black") +
+  facet_wrap(~ status_desc)+
+  labs(title = "Crimes Statuses Across Sex",
+       x = "Sex",
+       y = "Count of Crime Instances",
+       fill = "Status Type") + theme_minimal()
+```
+
+```{r}
+# crime locations across sex
+#filter unknown sex since we have done this to filtered_by_location
+filtered_by_location_with_sex <- filtered_by_location |>
+  filter(vict_sex == 'F'|vict_sex == 'M'|vict_sex == 'X')
+
+locations_counts_across_sex <- filtered_by_location_with_sex |> 
+                     group_by(vict_sex, location) |> 
+                     summarise(count = n())
+
+
+ggplot(locations_counts_across_sex, aes(x = vict_sex, y = count)) +
+  geom_bar(stat = "identity", fill = "skyblue", color = "black") +
+  facet_wrap(~location, scales = "free", ncol = 2)+
+  labs(title = "Top 10 locations Across victim Sex",
+       x = "Sex",
+       y = "Count of Crime Instances",
+      )  + theme_minimal()
+```
+
+```{r}
+#crime areas across sex
+area_across_sex <- filtered_by_area_name_sex |> 
+                     group_by(vict_sex, area_name) |> 
+                     summarise(count = n())
+
+
+ggplot(area_across_sex, aes(x = vict_sex, y = count)) +
+  geom_bar(stat = "identity", fill = "skyblue", color = "black") +
+  facet_wrap(~area_name, scales = "free", ncol = 3)+
+  labs(title = "Top 10 Crime Areas Across Area by Sex",
+       x = "Area",
+       y = "Count of Crime Instances",
+      )  + theme_minimal()
+
+```
+
+###Relationship by time of day
+```{r}
+#Group by time intervals and crime types, then count instances
+crime_type_counts_across_time <- filtered_by_crime_type |> 
+                     group_by(time_of_day, crm_cd_desc) |> 
+                     summarise(count = n())
+# Create a side-by-side bar plot
+ggplot(crime_type_counts_across_time, aes(x = time_of_day, y = count)) +
+  geom_bar(stat = "identity",fill = "skyblue", color = "black") +
+  facet_wrap(~ crm_cd_desc) +
+  labs(title = "Crime Counts Across time for Top Crime Types",
+       x = "Time of Day",
+       y = "Count") + theme_minimal()
+```
+
+```{r}
+#use similar method to see the use of weapons across time
+
+weapon_type_counts_across_time <- filtered_by_weapon_type |> 
+                     group_by(time_of_day, weapon_desc) |> 
+                     summarise(count = n())
+
+ggplot(weapon_type_counts_across_time, aes(x = time_of_day, y = count)) +
+  geom_bar(stat = "identity", position = position_dodge(),fill = "skyblue", color = "black") +
+  facet_wrap(~ weapon_desc)+
+ labs(title = "Top 10 Weapon Types Across Time",
+       x = "Time of Day",
+       y = "Count of Crime Instances",
+       fill = "Weapon Type") + theme_minimal()
+
+ggplot(filter(weapon_type_counts_across_time,weapon_desc!='Strong-arm'), aes(x = time_of_day, y = count)) +
+  geom_bar(stat = "identity", position = position_dodge(), fill = "skyblue", color = "black") +
+  facet_wrap(~ weapon_desc)+
+ labs(title = "Top 10 Weapon Types Across Time",
+       x = "Time of Day",
+       y = "Count of Crime Instances",
+       fill = "Weapon Type") + theme_minimal()
+```
+
+```{r}
+#with similar methods we explore crimes statuses across time of day
+status_type_counts_across_time <- clean_crime |> 
+                     group_by(time_of_day, status_desc) |> 
+                     summarise(count = n())
+
+
+ggplot(status_type_counts_across_time, aes(x = time_of_day, y = count)) +
+  geom_bar(stat = "identity", position = position_dodge(), fill = "skyblue", color = "black") +
+  facet_wrap(~ status_desc)+
+  labs(title = "Crimes Statuses by Time",
+       x = "Time of Day",
+       y = "Count of Crime Instances",
+       fill = "Status Type")  + theme(strip.text = element_text(size = 10)) + theme_minimal()
+```
+
+```{r}
+# crime locations across time of day
+
+locations_counts_across_time <- filtered_by_location |> 
+                     group_by(time_of_day, location) |> 
+                     summarise(count = n())
+
+
+ggplot(locations_counts_across_time, aes(x = time_of_day, y = count)) +
+  geom_bar(stat = "identity",fill = "skyblue", color = "black") +
+  facet_wrap(~location, scales = "free", ncol = 3) +
+  labs(title = "Top 10 crime locations by time of day",
+       x = "Time of Day",
+       y = "Count of Crime Instances"
+       )  + theme_minimal()
+
+
+
+```
+
+```{r}
+# crime area across time of day
+
+area_name_counts_across_time <- filtered_by_area_name |> 
+                     group_by(time_of_day, area_name) |> 
+                     summarise(count = n())
+
+ggplot(area_name_counts_across_time, aes(x = time_of_day, y = count)) +
+  geom_bar(stat = "identity",fill = "skyblue", color = "black") +
+  facet_wrap(~area_name, scales = "free", nrow = 3) +
+  labs(title = "Top 10 crime areas by time of day",
+       x = "Time of Day",
+       y = "Count of Crime Instances"
+       )  + theme_minimal()
+
+```
+
+###Relationship by year
+```{r}
+#breakdown the each of the crimes by year
+years_top_10_crimes <-years %>% 
+  filter(crm_cd_desc %in% head(common_crimes$crm_cd_desc,10))
+years_top_10_crimes$crm_cd_desc <- crime_type_abbreviations[years_top_10_crimes$crm_cd_desc]
+ggplot(years_top_10_crimes, aes(x = year)) +
+  geom_bar(fill = "skyblue", color = "black") +
+  facet_wrap(~ crm_cd_desc,nrow= 2) +
+  labs(title = "Crime over past 3 years across top 10 most common crimes",
+       x = "Year",
+       y = "Count of Crime Instances")
+
+table(years$year)
+
+#breakdown the each of the crime areas by year
+ggplot(years, aes(x = year)) +
+  geom_bar(fill = "skyblue", color = "black") +
+  facet_wrap(~ area_name,nrow= 3) +
+  labs(title = "Crime over past 3 years across LA areas",
+       x = "Year",
+       y = "Count of Crime Instances")
+```
+
+
+###4.Testing the data and perform analysis
+1. How has crime changed throughout the past three years? 
+```{r}
+#get percent change for Identity Theft and Motor Theft
+ID_2020 <- years %>% filter(year == 2020,crm_cd_desc == "THEFT OF IDENTITY")
+ID_2022 <- years %>% filter(year == 2022,crm_cd_desc == "THEFT OF IDENTITY")
+
+p_change_ID <- (nrow(ID_2022) - nrow(ID_2020))/nrow(ID_2020)
+print(p_change_ID)
+
+Mft_2020 <- years %>% filter(year == 2020&crm_cd_desc == "THEFT FROM MOTOR VEHICLE - GRAND ($950.01 AND OVER)")
+Mft_2022 <- years %>% filter(year == 2022&crm_cd_desc == "THEFT FROM MOTOR VEHICLE - GRAND ($950.01 AND OVER)")
+
+p_change_mft <- (nrow(Mft_2022) - nrow(Mft_2020))/nrow(Mft_2020)
+print(p_change_mft)
+
+#get percent change for central and Olympic
+Central_2020 <- years %>% filter(year == 2020,area_name == "Central")
+Central_2022 <- years %>% filter(year == 2022,area_name == "Central")
+
+p_change_Central <- (nrow(Central_2022) - nrow(Central_2020))/nrow(Central_2020)
+print(p_change_Central)
+
+Olympic_2020 <- years %>% filter(year == 2020&area_name == "Olympic")
+Olympic_2022 <- years %>% filter(year == 2022&area_name == "Olympic")
+
+p_change_Olmypic <- (nrow(Olympic_2022) - nrow(Olympic_2020))/nrow(Olympic_2020)
+print(p_change_Olmypic)
+
+```
+
+
+
+#What is the true mean age of a crime victim in Los Angeles? 
+```{r}
+age <- clean_crime$vict_age
+simulated_counts_age <- c()
+set.seed(100)
+for (i in 1:1000){
+  temp <- sample(age,length(age),replace=TRUE)
+  test_stat <- mean(temp)
+  simulated_counts_age[i] <-test_stat
+}
+
+ggplot(data.frame(value = simulated_counts_age), aes(x = value)) +
+  geom_histogram(fill = "skyblue", color = "black") +  
+  labs(title = "Simulated Mean Victim Ages",
+       x = "Ages",
+       y = "Frequency") +
+  theme_minimal()
+
+quantile(simulated_counts_age,c(0.025,0.975))
+```
+
+
+#What time is a crime most likley to occur? 
+```{r}
+timings <- clean_crime$time_occ
+simulated_counts_daytime <- c()
+set.seed(100)
+for (i in 1:1000){
+  temp <- sample(timings,length(timings),replace=TRUE)
+  test_stat <- mean(temp)
+  simulated_counts_daytime[i] <-test_stat
+}
+
+ggplot(data.frame(value = simulated_counts_daytime), aes(x = value)) +
+  geom_histogram(fill = "skyblue", color = "black") +  
+  labs(title = "Simulated Mean Times",
+       x = "Timings",
+       y = "Frequency") +
+  theme_minimal()
+
+quantile(simulated_counts_daytime,c(0.025,0.975))
+```
+
+
+#Is there a difference in likleyhood of crimes between day and night?
+H0: pfirst half - plater half = 0 (Crime is same throughout the day)
+HA: pfirst half - plater half != 0 (Crime differs throughout different halves of the day)
+```{r}
+timings <- clean_crime %>% 
+  select(time_occ) %>% 
+  mutate(day=case_when((time_occ < 1200 & time_occ > 0)~ TRUE,
+                       time_occ >= 1200~FALSE))
+
+head(timings)
+simulated_counts_daynight <- c()
+set.seed(120)
+
+
+for (i in 1:1000){
+  temp <- timings[sample(1:(nrow(timings)), nrow(timings)*0.25),]
+  test_stat = ((nrow(temp[temp$day==TRUE,]))/nrow(temp)) - (nrow(temp[temp$day==FALSE,]))/nrow(temp)
+  simulated_counts_daynight[i] <-  test_stat
+}
+
+ggplot(data.frame(value = simulated_counts_daynight), aes(x = value)) +
+  geom_histogram(fill = "skyblue", color = "black") + 
+  labs(title = "Simulated Difference in Proportion Between first half and later half of the day",
+       x = "Difference in Proportion Between first half of the day and later half of the day",
+       y = "Frequency") +
+  theme_minimal()
+
+summary(simulated_counts_daynight)
+
+quantile(simulated_counts_daynight,c(0.025,0.975))
+```
+Since the entire confidence interval is negative, we can say that we are 95% sure that more crimes happen in the night rather than day.
+
+#Male/Female Hypothesis test: is there evidence that male/female or more vulnerable to crimes?
+
+H0: For different sex, there is no difference in probability being victim, P_male - P_female = 0
+H1: For different sex, there is a difference in probability being victim, P_male - P_female != 0
+Significance Value: alpha = 0.05
+```{r}
+# Simulate data under the null hypothesis
+
+n_males <- nrow(clean_crime |> filter(vict_sex == 'M'))
+n_females <- nrow(clean_crime|> filter(vict_sex == 'F'))
+
+
+simulated_males <- rbinom(n_males, 1, 0.5)
+simulated_females <- rbinom(n_females, 1, 0.5)
+
+
+# Set seed for reproducibility
+set.seed(110)
+
+# Initialize vector to store bootstrap statistics
+bootstrap_sex <- vector("numeric", 1000)
+
+# Perform bootstrap
+for (i in 1:1000) {
+  # Sample with replacement from the simulated data
+  male_sample <- sample(simulated_males, size = n_males, replace = TRUE)
+  female_sample <- sample(simulated_females, size = n_females, replace = TRUE)
+  
+  # Calculate the statistic of interest - mean (proportion of 1's)
+  bs_stat <- mean(male_sample,na.rm = TRUE) - mean(female_sample,na.rm = TRUE)
+  
+  # Store the bootstrap statistic
+  bootstrap_sex[i] <- bs_stat
+}
+```
+#check result of hypothesis test
+```{r}
+
+# Since we are interested in the difference in proportions, we don't calculate a single CI
+# Instead, we could look at the distribution of bootstrap_stats to see if our observed difference is likely
+ggplot(data.frame(value = bootstrap_sex), aes(x = value)) +
+  geom_histogram(fill = "skyblue", color = "black") + 
+  labs(title = "Simulated Counts Across Difference in Proportion Between Sex",
+       x = "Difference in Proportion Between Sex",
+       y = "Frequency") +
+  theme_minimal()
+
+
+#find our test statistic 
+clean_crime_fm = clean_crime |> filter(vict_sex == 'M' | vict_sex == 'F')
+nrow(clean_crime_fm |> filter(vict_sex == 'M')) / nrow(clean_crime_fm) - nrow(clean_crime_fm |> filter(vict_sex == 'F')) / nrow(clean_crime_fm)
+
+#comparing to the distribution, p-value of our probability difference, 0.57, is almost 0.Hence, we reject H0, there is indeed a difference in vulnerability
+```
+Since, p-value < 0.05, We reject our null hypothesis, and we can say that there convincing evidence that women and men have differenct likelhood to be victims of crimes and using a confidence interval we can say that men are more likely to be victims as the entire confidence interval is negative and we can say that we are 95% confident that men are more likely to be victims of crimes compared to females.
+
+### Hypothesis testing whether crimes are targeted(biased) towards between two races with a 5% significance level
+## White and Black descents 
+Null H0: pw = 0.5 there is no bias for one race over the other to commit a crime on 
+Alt Ha: pw != 0.5 there is bias for one race over the other to commit a crime on
+From the bootstrapping, we can conclude that the probability of an individual of white descent being a victim is around 0.5002, which is not a very small probability. We can also conclude using the significance level of 5%, the proportion of white victims found in our data does not fall below the 5% significance level. 
+
+original code
+```{r}
+crime_W_B <- crime |> filter(vict_descent == "W" | vict_descent == "B")
+
+n_white_vict <- sum(crime$vict_descent =="W")
+n_black_vict <- sum(crime$vict_descent =="B")
+
+p_white <- n_white_vict/nrow(crime_W_B)
+p_black <- n_black_vict/nrow(crime_W_B)
+
+# bootstrap null hypothesis
+set.seed(100)
+# one permutation of black and white victims
+victperm <- crime_W_B$vict_descent[sample(1:nrow(crime_W_B), 10000, replace = FALSE)]
+n_simul_white <- sum(victperm =="W")
+
+simulated_black_white <- c() 
+for(i in 1:10000){
+  temp <- crime_W_B$vict_descent[sample(1:nrow(crime_W_B), 10000, replace = FALSE)]
+  simulated_black_white[i] <- sum(temp=="W")
+}
+
+ggplot(data.frame(value = simulated_black_white), aes(x = value)) +
+  geom_histogram(fill = "skyblue", color = "black") +  
+  labs(title = "Simulated Number of White People",
+       x = "Number of White People",
+       y = "Frequency") +
+  theme_minimal()
+
+test_stat <- p_white*10000
+sum(simulated_black_white >=(test_stat))/10000
+
+# 95% confidence interval
+quantile(simulated_black_white,c(0.05,0.95))
+```
+
+
+Create a bootstrap sampling distribution of difference between white victim proportions and black victim proportions. We can determine if the true population difference in white victim proportions and black victim proportions being 0 is actually possible by seeing if it lies within the 95% confidence interval of our bootstrap sampling distribution. 
+```{r}
+crime_W_B <- crime |> filter(vict_descent == "W" | vict_descent == "B")
+
+n_white_vict <- sum(crime$vict_descent =="W")
+n_black_vict <- sum(crime$vict_descent =="B")
+
+p_white <- n_white_vict/nrow(crime_W_B)
+p_black <- n_black_vict/nrow(crime_W_B)
+
+test_stat <- p_white - p_black
+
+# bootstrap sampling distribution 
+set.seed(100)
+# one permutation of black and white victims
+victperm <- crime_W_B$vict_descent[sample(1:nrow(crime_W_B), 10000, replace = FALSE)]
+n_simul_diff <- sum(victperm =="W")/10000 - sum(victperm =="B")/10000
+
+simulated_black_white_proportion <- c() 
+for(i in 1:10000){
+  temp <- crime_W_B$vict_descent[sample(1:nrow(crime_W_B), 10000, replace = FALSE)]
+  simulated_black_white_proportion[i] <- sum(temp =="W")/10000 - sum(temp =="B")/10000
+}
+
+ggplot(data.frame(value = simulated_black_white_proportion), aes(x = value)) +
+  geom_histogram(fill = "skyblue", color = "black") +  
+  labs(title = "Simulated Difference in Proportion Between White and Black",
+       x = "Difference in Proportion (P_white - P_black)",
+       y = "Frequency") +
+  theme_minimal()
+
+# 95% confidence interval
+quantile(simulated_black_white_proportion,c(0.025,0.975))
+```
+## White and Hispanic descents 
+Null H0: pw = 0.5 there is no bias for one race other the other to be a victim of a crime on between white and hispanic descents 
+Alt Ha: pw != 0.5 there is bias for one race other the other to be a victim a crime on between white and hispanic descents
+```{r}
+crime_W_H <- crime |> filter(vict_descent == "W" | vict_descent == "H")
+
+n_white_vict <- sum(crime$vict_descent =="W")
+n_hisp_vict <- sum(crime$vict_descent =="H")
+
+p_white <- n_white_vict/nrow(crime_W_H)
+p_hisp <- n_hisp_vict/nrow(crime_W_H)
+
+# bootstrap sampling distribution 
+set.seed(100)
+# one permutation of black and white victims
+victperm <- crime_W_H$vict_descent[sample(1:nrow(crime_W_H), 10000, replace = FALSE)]
+n_simul_diff <- sum(victperm =="W")/10000 - sum(victperm =="H")/10000
+
+simulated_white_hispanic <- c() 
+for(i in 1:10000){
+  temp <- crime_W_H$vict_descent[sample(1:nrow(crime_W_H), 10000, replace = FALSE)]
+  simulated_white_hispanic[i] <- sum(temp =="W")/10000 - sum(temp =="H")/10000
+}
+
+ggplot(data.frame(value = simulated_white_hispanic), aes(x = value)) +
+  geom_histogram(fill = "skyblue", color = "black") +  
+  labs(title = "Simulated Difference in Proportion Between White and Hispanic",
+       x = "Difference in Proportion (P_white - P_hispanic",
+       y = "Frequency") +
+  theme_minimal()
+# 95% confidence interval
+quantile(simulated_white_hispanic,c(0.025,0.975))
+
+```
+### 95% Confidence interval between the time (days from occurrance to reported date) it took to report a crime. 
+From the confidence interval below, we can conclude that we are 95% confident that the average time it takes for a crime to be reported will fall between 10.14872 days and 10.88524 days. 
+```{r}
+# time reported
+diff_dates <- difftime(crime$date_rptd,crime$date_occ, units = "days")
+
+# bootstrap
+simulated_days <- c()
+set.seed(123)
+for(i in 1:10000){
+  # temp <- sample(diff_dates,length(diff_dates),replace=TRUE)
+  temp <- diff_dates[sample(1:length(diff_dates), 80000, replace = FALSE)]
+  test_stat <- mean(temp)
+  simulated_days[i] <- test_stat
+}
+
+ggplot(data.frame(value = simulated_days), aes(x = value)) +
+  geom_histogram(fill = "skyblue", color = "black") +  
+  labs(title = "Simulated Mean Days afer Report",
+       x = "Days",
+       y = "Frequency") +
+  theme_minimal()
+
+# Confidence Interval of the average time it took for a crime to be reported
+quantile(simulated_days,c(0.025,0.975))
+```
+
+
+#weekend/weekdays
+
+Hypothesis test: is there evidence that weekend/weekdays have more crimes?
+
+H0: For different sex, there is no difference in crimes per day, then weekdays will consist 5/7 of all crimes, weekend consist 2/7, p_weekday = 5/7,p_weekend = 1-2/7 since they are mutually exclusive.
+H1: For different sex, there is a difference in crimes per day, then weekdays will consist 5/7 of all crimes and weekends will consist 2/7
+
+```{r}
+#Split data into weekday/weekend
+
+# Convert date and time columns to POSIXct
+clean_crime$date_occ <- as.POSIXct(clean_crime$date_occ, format = "%m/%d/%Y %I:%M:%S %p")
+
+# Create a new variable for weekdays and weekends
+clean_crime$day_type <- ifelse(weekdays(clean_crime$date_occ) %in% c("Saturday", "Sunday"), "Weekend", "Weekday")
+
+# Split the data
+weekend_data <- clean_crime[clean_crime$day_type == "Weekend", ]
+weekday_data <- clean_crime[clean_crime$day_type == "Weekday", ]
+
+#find statistic
+stat <- nrow(weekday_data) / nrow(clean_crime)
+```
+
+```{r}
+# Simulate data under the null hypothesis
+sample_weekdays = rbinom(nrow(clean_crime),1,5/7)
+# Set seed for reproducibility
+set.seed(101)
+
+# Initialize vector to store bootstrap statistics
+bootstrap_stats_weekday <- vector("numeric", 1000)
+
+# Perform bootstrap
+for (i in 1:1000) {
+  # Sample with replacement from the simulated data
+  mysample <- sample(sample_weekdays, size = 1000, replace = TRUE)
+  
+  # Calculate the statistic of interest - mean (proportion of weekdays)
+  bs_stat <- mean(mysample,na.rm = TRUE)
+  
+  # Store the bootstrap statistic
+  bootstrap_stats_weekday[i] <- bs_stat
+}
+```
+
+```{r}
+# Simulate data under the null hypothesis
+ggplot(data.frame(value = bootstrap_stats_weekday), aes(x = value)) +
+  geom_histogram(fill = "skyblue", color = "black") +  
+  labs(title = "Simulated Proportion of Weekdays ",
+       x = "Proportion of Weekdays",
+       y = "Frequency") +
+  theme_minimal()
+
+2*mean(bootstrap_stats_weekday<stat)
+```
+As we can see, there are at least around 0.2-0.3 data more extreme than our statistic, so p-value > 0.05, we fail to reject the null hypothesis, so there is no evidence that weekdays or weekends has more crimes per day
+
+#We want to construct a model to see given other crime informations, what is the likely sex/age of the victim. This sometimes provides clues to solve cases when victim's information is incomplete. To achieve our goal, we want to build a random forest model. There is no gender discrimination but we have not yet learned the visualization of mutli-class classification so we are only focusing on female/male classification
+
+some preprocessing for modeling
+```{r}
+library(pheatmap)
+library(randomForest)
+#clear all null values, we dont want such category in modeling process
+
+#select variables that may potentially provide information to prediction
+crime_selected <- clean_crime |>
+  select(time_occ,area,crm_cd_desc,vict_age,vict_sex,weapon_desc,status,location,vict_descent)
+
+
+#Since we are doing binary classification, filter instance with only F and M sex, and since some variables like crime_type have too many categories, we filter only the most occured instances of crime type,weapon type type and locations. We can also see there are many empty values in weapon_desc so we drop them
+
+crime_selected <- drop_na(crime_selected)
+crime_filtered <- crime_selected |>
+  filter(weapon_desc %in% head(weapon_crimes$weapon_desc,12) & crm_cd_desc %in% head(common_crimes$crm_cd_desc,12) & location %in% head(locations_crime$location,12)) |>
+  filter(vict_sex == 'F' | vict_sex == 'M') #by trying different values we found top 12 has best balance betweeen precision and generability
+```
+
+Model Training
+```{r}
+# Ensure factor columns are as factors and not characters
+crime_filtered = crime_filtered |> filter(vict_sex == 'M' | vict_sex == 'F')
+
+
+crime_filtered$vict_sex <- as.factor(crime_filtered$vict_sex)
+if(!all(levels(crime_filtered$vict_sex) %in% c('M', 'F'))) {
+    stop("vict_sex must only contain 'M' and 'F'")
+}
+
+
+
+# Split the data into training and testing sets
+set.seed(123) # For reproducibility
+training_indices <- sample(1:nrow(crime_filtered), 0.8*nrow(crime_filtered))
+train_data <- crime_filtered[training_indices, ]
+test_data <- crime_filtered[-training_indices, ]
+
+# Build the Random Forest model, During hyperparameter tuning, we found ntree does not make much difference and mytry = 3,4 performs very slightly better on test data
+rf_model <- randomForest(vict_sex ~ .,ntree = 500, data = train_data,mytry=4)
+
+# Predict on the test data
+predictions <- predict(rf_model, test_data)
+
+print(rf_model)
+# Create a confusion matrix to evaluate the model
+confusion_matrix <- table(Predicted = predictions, Actual = test_data$vict_sex)
+# Plot the heatmap with more legible text and without the dendrogram (the 'nonsensical lines')
+pheatmap(confusion_matrix, 
+         color = colorRampPalette(c("white", "grey60", "red"))(100), 
+         display_numbers = TRUE, 
+         number_font_size = 16, 
+         main = "Confusion Matrix",
+         cluster_rows = FALSE, 
+         cluster_cols = FALSE, 
+         )
+
+print('misclassfication rate:')
+
+#misclassification rate:
+rf_model$importance
+```
+reflection: the misclassifcation rate of female is much higher than male, maybe because there are too many male instances than female, and this is also not the case of population. It can lead to bad results that the predictor predict more victims male which is not good for the population prediction. We want to balance the crime_filtered data
+to make it simalr
+```{r}
+# Check the number of female instances
+crime_filtered_female <- crime_filtered |>
+  filter(vict_sex == 'F')
+
+
+# Sample from male instances to balance the data
+crime_filtered_male <- crime_filtered |>
+  filter(vict_sex == 'M')
+
+
+#downsample male instances
+crime_filtered_balanced <- crime_filtered_male |>
+    sample_n(nrow(crime_filtered_female))
+crime_filtered_balanced <- bind_rows(crime_filtered_balanced, crime_filtered_female)
+
+
+# Now, crime_filtered_balanced should have an equal number of male and female instances, perform classification again:
+
+crime_filtered_balanced$vict_sex <- as.factor(crime_filtered_balanced$vict_sex)
+if(!all(levels(crime_filtered_balanced$vict_sex) %in% c('M', 'F'))) {
+    stop("vict_sex must only contain 'M' and 'F'")
+}
+
+# Split the data into training and testing sets
+set.seed(123) # For reproducibility
+training_indices <- sample(1:nrow(crime_filtered_balanced), 0.8*nrow(crime_filtered_balanced))
+train_data <- crime_filtered_balanced[training_indices, ]
+test_data <- crime_filtered_balanced[-training_indices, ]
+
+# Build the Random Forest model, During hyperparameter tuning, we found ntree does not make much difference and mytry = 3,4 performs very slightly better on test data
+rf_model <- randomForest(vict_sex ~ .,ntree = 2000, data = train_data,mytry=5)
+
+# Predict on the test data
+predictions <- predict(rf_model, test_data)
+
+print(rf_model)
+# Create a confusion matrix to evaluate the model
+confusion_matrix <- table(Predicted = predictions, Actual = test_data$vict_sex)
+pheatmap(confusion_matrix, 
+         color = colorRampPalette(c("white", "grey60", "red"))(100), 
+         display_numbers = TRUE, 
+         number_font_size = 16, 
+         main = "Confusion Matrix",
+         cluster_rows = FALSE, 
+         cluster_cols = FALSE, 
+         )
+print('misclassification rate:')
+
+rf_model$importance
+
+varImpPlot(rf_model)
+```
+Interpretation: a 0.36 misclassification is much higher than that of 0.3 but this time with a more balanced misclassification rate of both types. 
+
+
+
+
