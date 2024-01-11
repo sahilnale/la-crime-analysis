@@ -81,6 +81,8 @@ visualization on victim sexes.
 
 **Most committed crimes**
 
+<a src="https://lh3.googleusercontent.com/keep-bbsk/ALhRneGb07aKrm-YQ5Z8zxQDDcNnhYLJiJcE0yYCmem2UDQM65tgoVfS4-8Fp2v5Jb9zrZiRtFR8G4EGscP08sBtBZruwqOi8Y4QElZdP8d48oauzBxq=s1518">
+
 We start off the data exploration by seeing what crimes are the most common and what percent
 
 of the total crimes are these most committed crimes. We obtain the following list of most
@@ -90,10 +92,6 @@ committed crimes and its criminal code with the most prevalent being stolen Vehi
 around 10.71% of all crimes being that crime.
 
 
-
-<a name="br4"></a> 
-
-3
 
 **Most used weapons in crimes where weapon was used**
 
