@@ -11,8 +11,7 @@ The code for the crime analysis is attached and the pdf with the final summarize
 
 Everything in this RMD is a summarized version of findings in the dataset, please refer to the code/R-Markdown file for a more detailed analysis & data exploration
 
-
-<a name="br1"></a> 
+ 
 
 **Insights into Crime: A Comprehensive Statistical Analysis of Crime in Los Angeles**
 
@@ -135,6 +134,7 @@ earliest crime happens at 00:01 in the morning and latest at 23:59 in the night 
 
 timing being at 13:23 in the afternoon.
 
+
 **Understanding Ages of victims**
 
 Next, part of the data exploration to answer our question about the demographics of victims we
@@ -149,27 +149,8 @@ visualize the outliers of the distribution.
 
 Summary Statistics:
 
-Min.
-
-1st Qu. Median Mean
-
-3rd Qu. Max.
-
-
-
-<a name="br6"></a> 
-
-5
-
-2\.00
-
-28\.00
-
-37\.00
-
-39\.58
-
-50\.00 120.00
+Min.   1st Qu. Median  Mean     3rd Qu.    Max.
+2\.00  28\.00  37\.00  39\.58  50\.00 120.00
 
 Standard Deviation: 15.586
 
