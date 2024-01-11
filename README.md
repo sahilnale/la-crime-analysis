@@ -81,7 +81,7 @@ visualization on victim sexes.
 
 **Most committed crimes**
 
-<a src="https://lh3.googleusercontent.com/keep-bbsk/ALhRneGb07aKrm-YQ5Z8zxQDDcNnhYLJiJcE0yYCmem2UDQM65tgoVfS4-8Fp2v5Jb9zrZiRtFR8G4EGscP08sBtBZruwqOi8Y4QElZdP8d48oauzBxq=s1518">
+<img src="https://lh3.googleusercontent.com/keep-bbsk/ALhRneGb07aKrm-YQ5Z8zxQDDcNnhYLJiJcE0yYCmem2UDQM65tgoVfS4-8Fp2v5Jb9zrZiRtFR8G4EGscP08sBtBZruwqOi8Y4QElZdP8d48oauzBxq=s1518">
 
 We start off the data exploration by seeing what crimes are the most common and what percent
 
