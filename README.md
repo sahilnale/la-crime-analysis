@@ -26,13 +26,9 @@ This research was initially intended to investigate the location and time of cri
 The following are questions that are going to be explored in this report:
 
 1\. How has crime changed throughout the past three years in Los Angeles?
-
 2\. Where are crimes most likely to occur in Los Angeles?
-
 3\. What demographics are most likely to be a victim of crime in Los Angeles?
-
 4\. When are crimes more likely to occur in Los Angeles?
-
 5\. How long does it take victims to report crimes after they have occurred in Los Angeles?
 
 Our general motivation for looking into LA crime data was to find relationships and patterns that help bring more awareness and safety to the people of LA, by providing them with information that can help them avoid crime. We investigated demographics of victims such as age, sex, and descent, to see who was most likely to be a victim of a crime. We also looked into the times crimes would occur to determine whether crimes occur more during the day or at night, so we could inform individuals to be more aware during these times. The average length it took for a crime to be reported was also looked into to find out if crimes were reported in a timely manner because decreasing the number of days would inform the population of a crime quicker and increase awareness. The dataset used for this project is sourced from the Los Angeles Police Department (LAPD), a reputable and transparent public organization. It encompasses crime records in the city of Los Angeles from the year 2020 to the present date (last updated on October 18, 2023). The crime records are transcribed from original crime reports that were on paper first. The dataset is updated on a weekly basis, ensuring the inclusion of the latest information. While the LAPD is considered a trustworthy source, it is essential to acknowledge that there may be inaccuracies in the data. The dataset covers crimes reported in the city of Los Angeles, offering insights into various criminal activities over the specified time frame. Addresses are maintained to the nearest hundred block to preserve privacy, and in cases wherethe address is unavailable, the default coordinates are set to (0º, 0º).
@@ -83,7 +79,7 @@ visualization on victim sexes.
 
 **Most committed crimes**
 
-<img src="/images/image1.png">
+<img src="/images/image16.png">
 
 We start off the data exploration by seeing what crimes are the most common and what percent
 
@@ -97,6 +93,8 @@ around 10.71% of all crimes being that crime.
 
 **Most used weapons in crimes where weapon was used**
 
+<img src="/images/image22.png">
+
 Next we see what weapons are the most common in crimes where a weapon was used and what
 
 percent of the total crimes are these weapons used in. We obtain the following list of most most
@@ -104,6 +102,7 @@ percent of the total crimes are these weapons used in. We obtain the following l
 used weapons in crimes where the weapon was used and its weapon code with the most used
 
 weapon being a “STRONG-ARM” with around 18.681% of crimes using that as a weapon.
+
 
 **Crimes by time**
 
@@ -114,28 +113,13 @@ the dataset. We plot the variable into a histogram and split the bin widths to a
 make each bin represent a single hour of the day as the time is provided in a 3 - 4 digit value
 
 representing military time.
-
-
-
-<a name="br5"></a> 
-
-4
+<img src="/images/image13.png">
 
 Summary Statistics:
 
-Min. 1st Qu. Median
+Min. 1st Qu. Median Mean 3rd Qu. Max.
 
-Mean 3rd Qu.
-
-Max.
-
-2359
-
-1
-
-900
-
-1400 1323 1845
+1      900    1400  1323 1845  2359
 
 In the graph, we can see that crimes are following this cyclical pattern where starting at 5 am and
 
